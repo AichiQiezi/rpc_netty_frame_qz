@@ -9,6 +9,9 @@ import com.acqz.common.extension.ExtensionLoader;
  */
 
 public class T {
+    public void dog(){
+        System.out.println("wwww");
+    }
     public static void main(String[] args) {
         new ExtensionLoader<>(Integer.class).getExtensionClasses();
     }

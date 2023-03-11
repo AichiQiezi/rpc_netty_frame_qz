@@ -48,7 +48,6 @@ public class NettyRpcServerHandler extends AbstractRpcServerHandler {
                     rpcMessage.setMessageType(RpcConstants.HEARTBEAT_RESPONSE_TYPE);
                     rpcMessage.setData(RpcConstants.PONG);
                 } else {
-                    CompletableFuture<Object> resultsFuture = new CompletableFuture<>();
                     RpcRequest rpcRequest = (RpcRequest) ((RpcMessage) msg).getData();
                     //执行目标方法并接收返回值
                     CompletableFuture<Object> completableFuture = CompletableFuture.supplyAsync(() -> rpcRequestHandler.handle(rpcRequest));

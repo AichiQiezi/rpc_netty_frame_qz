@@ -9,6 +9,7 @@ import com.acqz.rpc.remoting.dto.RpcResponse;
 import com.acqz.rpc.remoting.transport.RpcRequestTransport;
 import com.acqz.rpc.remoting.transport.netty.client.NettyRpcClient;
 import com.acqz.rpc.remoting.transport.socket.SocketRpcClient;
+import io.netty.handler.timeout.TimeoutException;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
@@ -17,12 +18,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Dynamic proxy class.
  * When a dynamic proxy object calls a method, it actually calls the following invoke method.
  * It is precisely because of the dynamic proxy that the remote method called by the client is like calling the local method (the intermediate process is shielded)
- *
  */
 @Slf4j
 public class RpcClientProxy implements InvocationHandler {
@@ -71,13 +72,22 @@ public class RpcClientProxy implements InvocationHandler {
                 .group(rpcServiceConfig.getGroup())
                 .version(rpcServiceConfig.getVersion())
                 .build();
+        int retryCount = 3, timeout = 5;
         RpcResponse<Object> rpcResponse = null;
-        if (rpcRequestTransport instanceof NettyRpcClient) {
-            CompletableFuture<RpcResponse<Object>> completableFuture = (CompletableFuture<RpcResponse<Object>>) rpcRequestTransport.sendRpcRequest(rpcRequest);
-            rpcResponse = completableFuture.get();
-        }
-        if (rpcRequestTransport instanceof SocketRpcClient) {
-            rpcResponse = (RpcResponse<Object>) rpcRequestTransport.sendRpcRequest(rpcRequest);
+        while (retryCount > 0) {
+            try {
+                if (rpcRequestTransport instanceof NettyRpcClient) {
+                    CompletableFuture<RpcResponse<Object>> completableFuture = (CompletableFuture<RpcResponse<Object>>) rpcRequestTransport.sendRpcRequest(rpcRequest);
+                    rpcResponse = completableFuture.get(timeout, TimeUnit.SECONDS);
+                }
+                if (rpcRequestTransport instanceof SocketRpcClient) {
+                    rpcResponse = (RpcResponse<Object>) rpcRequestTransport.sendRpcRequest(rpcRequest);
+                }
+            } catch (TimeoutException e) {
+                log.warn("Rpc request timeout, retrying...");
+                retryCount--;
+                timeout += 1;
+            }
         }
         this.check(rpcResponse, rpcRequest);
         return rpcResponse.getData();

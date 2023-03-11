@@ -1,1 +1,1 @@
-zk=com.acqz.rpc.provider.impl.ZkServiceProviderImpl
+zk=com.acqz.rpc.registry.zk.ZkServiceRegistryImpl

@@ -1,1 +1,1 @@
-gzip=github.javaguide.compress.gzip.GzipCompress
+gzip=com.acqz.rpc.compress.gzip.GzipCompress

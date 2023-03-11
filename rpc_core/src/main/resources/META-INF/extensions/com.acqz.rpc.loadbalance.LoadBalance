@@ -1,0 +1,1 @@
+loadBalance=com.acqz.rpc.loadbalance.loadbalancer.ConsistentHashLoadBalance

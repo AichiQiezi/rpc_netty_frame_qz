@@ -2,6 +2,7 @@ package com.acqz.rpc.registry.zk.util;
 
 import com.acqz.common.enums.RpcConfigEnum;
 import com.acqz.common.utils.PropertiesFileUtil;
+import com.google.common.util.concurrent.MoreExecutors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
@@ -54,7 +55,6 @@ public final class CuratorUtils {
             if (REGISTERED_PATH_SET.contains(path) || zkClient.checkExists().forPath(path) != null) {
                 log.info("The node already exists. The node is:[{}]", path);
             } else {
-                //eg: /my-rpc/github.javaguide.HelloService/127.0.0.1:9999
                 zkClient.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(path);
                 log.info("The node was created successfully. The node is:[{}]", path);
             }
@@ -141,8 +141,9 @@ public final class CuratorUtils {
             List<String> serviceAddresses = curatorFramework.getChildren().forPath(servicePath);
             SERVICE_ADDRESS_MAP.put(rpcServiceName, serviceAddresses);
         };
-        pathChildrenCache.getListenable().addListener(pathChildrenCacheListener);
+        pathChildrenCache.getListenable().addListener(pathChildrenCacheListener::childEvent);
         pathChildrenCache.start();
+
     }
 
 }

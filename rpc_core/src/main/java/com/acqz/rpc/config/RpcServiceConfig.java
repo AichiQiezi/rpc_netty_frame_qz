@@ -5,7 +5,7 @@ import lombok.*;
 /**
  * @author haofeng
  * @date 2023/2/25 14:28
- * @description 配置类
+ * @description 配置类用于服务注册
  */
 @Getter
 @Setter
@@ -28,7 +28,7 @@ public class RpcServiceConfig {
     private Object service;
 
     public String getRpcServiceName() {
-        return this.getServiceName() + this.getGroup() + this.getVersion();
+        return this.getServiceName() + "_" + this.getGroup() + "_" + this.getVersion();
     }
 
     public String getServiceName() {

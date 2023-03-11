@@ -1,9 +1,12 @@
 package com.acqz.rpc.serialize;
 
 
+import com.acqz.common.extension.SPI;
+
 /**
  * 用于扩展序列化、反序列化算法
  */
+@SPI
 public interface Serializer {
 
     /**

@@ -6,12 +6,13 @@ import lombok.Getter;
 public enum SerializationTypeEnum {
     KYRO((byte) 0x01, "kyro"),
     PROTOSTUFF((byte) 0x02, "protostuff"),
-    HESSIAN((byte) 0X03, "hessian");
+    HESSIAN((byte) 0x03, "hessian"),
+    JSON((byte)0x04,"json");
 
     private final byte code;
     private final String name;
 
-    SerializationTypeEnum(byte code,String name){
+    SerializationTypeEnum(byte code, String name) {
         this.code = code;
         this.name = name;
     }

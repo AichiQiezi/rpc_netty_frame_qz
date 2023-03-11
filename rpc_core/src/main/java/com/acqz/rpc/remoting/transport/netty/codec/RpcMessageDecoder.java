@@ -14,6 +14,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Map;
+
 /**
  * @author haofeng
  * @date 2023/2/25 12:13
@@ -83,7 +85,19 @@ public class RpcMessageDecoder extends LengthFieldBasedFrameDecoder {
             rpcMessage.setData(RpcConstants.PONG);
             return rpcMessage;
         }
-        int bodyLength = fullLength - RpcConstants.HEAD_LENGTH;
+        int extLen = frame.readInt();
+        Map extFields = null;
+        if (extLen > 0){
+            Serializer extension = ExtensionLoader.getExtensionLoader(Serializer.class)
+                    .getExtension(SerializationTypeEnum.JSON.getName());
+            byte[] bytes = new byte[extLen];
+            frame.readBytes(bytes);
+            extFields = extension.deserialize(bytes, Map.class);
+        }
+        if (extFields != null){
+            rpcMessage.setExtensionFields(extFields);
+        }
+        int bodyLength = fullLength - RpcConstants.HEAD_LENGTH - RpcConstants.EXT_LENGTH - extLen;
         if (bodyLength > 0){
             byte[] bytes = new byte[bodyLength];
             frame.readBytes(bytes);
@@ -112,6 +126,7 @@ public class RpcMessageDecoder extends LengthFieldBasedFrameDecoder {
 
     private void checkVersion(ByteBuf frame) {
         byte version = frame.readByte();
+        //todo 初始化不同版本对应的消息处理器
         if (version != RpcConstants.VERSION){
             throw new IllegalArgumentException("version isn't compatible" + version);
         }

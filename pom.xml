@@ -11,6 +11,9 @@
     <modules>
         <module>rpc_core</module>
         <module>rpc_common</module>
+        <module>qz_consumer</module>
+        <module>qz_provider</module>
+        <module>qz_interface</module>
     </modules>
 
 

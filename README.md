@@ -9,4 +9,5 @@ rpc
 # 限流方法基于令牌桶算法实现
 ![img.png](img/img2.png)
 
-# 
+# 基于消息总线的最终一致性的注册中心
+![img.png](img/img3.png)

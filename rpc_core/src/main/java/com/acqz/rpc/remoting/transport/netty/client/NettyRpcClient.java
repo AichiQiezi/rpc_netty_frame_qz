@@ -1,7 +1,9 @@
 package com.acqz.rpc.remoting.transport.netty.client;
 
 import com.acqz.common.enums.CompressTypeEnum;
+import com.acqz.common.enums.RpcErrorMessageEnum;
 import com.acqz.common.enums.SerializationTypeEnum;
+import com.acqz.common.exception.RpcException;
 import com.acqz.common.extension.ExtensionLoader;
 import com.acqz.common.factory.SingletonFactory;
 import com.acqz.rpc.registry.ServiceDiscovery;
@@ -9,6 +11,7 @@ import com.acqz.rpc.remoting.constants.RpcConstants;
 import com.acqz.rpc.remoting.dto.RpcMessage;
 import com.acqz.rpc.remoting.dto.RpcRequest;
 import com.acqz.rpc.remoting.dto.RpcResponse;
+import com.acqz.rpc.remoting.limit.TokenBucketLimiter;
 import com.acqz.rpc.remoting.transport.RpcRequestTransport;
 import com.acqz.rpc.remoting.transport.netty.codec.RpcMessageDecoder;
 import com.acqz.rpc.remoting.transport.netty.codec.RpcMessageEncoder;
@@ -28,9 +31,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * client
  * @author haofeng
  * @date 2023/2/25 12:10
- * @description 客户端
  */
 @Slf4j
 public class NettyRpcClient implements RpcRequestTransport {
@@ -39,6 +42,7 @@ public class NettyRpcClient implements RpcRequestTransport {
     private final ChannelProvider channelProvider;
     private final Bootstrap bootstrap;
     private final EventLoopGroup eventLoopGroup;
+    private final TokenBucketLimiter tokenBucketLimiter;
 
     public NettyRpcClient() {
         eventLoopGroup = new NioEventLoopGroup();
@@ -62,6 +66,7 @@ public class NettyRpcClient implements RpcRequestTransport {
         this.serviceDiscovery = ExtensionLoader.getExtensionLoader(ServiceDiscovery.class).getExtension("zk");
         this.unprocessedRequests = SingletonFactory.getInstance(UnprocessedRequests.class);
         this.channelProvider = SingletonFactory.getInstance(ChannelProvider.class);
+        this.tokenBucketLimiter = SingletonFactory.getInstance(TokenBucketLimiter.class);
     }
 
     /**
@@ -73,7 +78,7 @@ public class NettyRpcClient implements RpcRequestTransport {
     @SneakyThrows
     public Channel doConnect(InetSocketAddress inetSocketAddress) {
         CompletableFuture<Channel> completableFuture = new CompletableFuture<>();
-        //异步回调，method of complete will return the constructed channel
+        //asynchronous callback，method of complete will return the constructed channel
         bootstrap.connect(inetSocketAddress).addListener((ChannelFutureListener) future -> {
             if (future.isSuccess()) {
                 log.info("The client has connected [{}] successful!", inetSocketAddress.toString());
@@ -82,33 +87,39 @@ public class NettyRpcClient implements RpcRequestTransport {
                 throw new IllegalStateException();
             }
         });
+        // Synchronous wait
         return completableFuture.get();
     }
 
     @Override
     public Object sendRpcRequest(RpcRequest rpcRequest) {
-        // 构建返回值
+        // build result
         CompletableFuture<RpcResponse<Object>> resultFuture = new CompletableFuture<>();
-        // 获取服务地址，通过 zookeeper来动态选择服务地址
+        // get the service address and use zookeeper dynamically select the service address
         InetSocketAddress inetSocketAddress = serviceDiscovery.lookupService(rpcRequest);
-        // 获取服务地址绑定的 channel
+        // get the channel for which the service address is bound
         Channel channel = getChannel(inetSocketAddress);
         if (channel.isActive()) {
-            // put unprocessed request
-            unprocessedRequests.put(rpcRequest.getRequestId(), resultFuture);
-            RpcMessage rpcMessage = RpcMessage.builder().data(rpcRequest)
-                    .codec(SerializationTypeEnum.KYRO.getCode())
-                    .compress(CompressTypeEnum.GZIP.getCode())
-                    .messageType(RpcConstants.REQUEST_TYPE).build();
-            channel.writeAndFlush(rpcMessage).addListener((ChannelFutureListener) future -> {
-                if (future.isSuccess()) {
-                    log.info("client send message: [{}]", rpcMessage);
-                } else {
-                    future.channel().close();
-                    resultFuture.completeExceptionally(future.cause());
-                    log.error("Send failed:", future.cause());
-                }
-            });
+            if (tokenBucketLimiter.tryAcquire()){
+                // put unprocessed request
+                String requestId = rpcRequest.getRequestId();
+                unprocessedRequests.put(requestId, resultFuture);
+                RpcMessage rpcMessage = RpcMessage.builder().data(rpcRequest)
+                        .codec(SerializationTypeEnum.KYRO.getCode())
+                        .compress(CompressTypeEnum.GZIP.getCode())
+                        .messageType(RpcConstants.REQUEST_TYPE).build();
+                channel.writeAndFlush(rpcMessage).addListener((ChannelFutureListener) future -> {
+                    if (future.isSuccess()) {
+                        log.info("client send message: [{}]", rpcMessage);
+                    } else {
+                        future.channel().close();
+                        unprocessedRequests.completeWhenExceptionally(requestId,future.cause());
+                        log.error("Send failed:", future.cause());
+                    }
+                });
+            }else {
+                throw new RpcException(RpcErrorMessageEnum.SERVICE_IS_LIMITED);
+            }
         } else {
             throw new IllegalStateException();
         }

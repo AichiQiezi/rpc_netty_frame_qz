@@ -1,5 +1,6 @@
 package com.acqz.rpc.config;
 
+import com.acqz.rpc.remoting.fuse.CircuitBreaker;
 import lombok.*;
 
 /**
@@ -21,6 +22,15 @@ public class RpcServiceConfig {
      * when the interface has multiple implementation classes, distinguish by group
      */
     private String group = "";
+
+    /**
+     * Method called when fuse occurs,throws an exception when null
+     */
+    private Object fallback;
+
+    private Boolean is_fuse;
+
+    private CircuitBreaker circuitBreaker;
 
     /**
      * target service

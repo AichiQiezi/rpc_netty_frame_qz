@@ -8,11 +8,13 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="rpc_core" />
-        <module name="qz_provider" />
         <module name="qz_consumer" />
         <module name="rpc_common" />
         <module name="qz_interface" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="qz_provider" target="8" />
+    </bytecodeTargetLevel>
   </component>
 </project>

@@ -27,4 +27,13 @@ public class UnprocessedRequests {
             throw new IllegalStateException();
         }
     }
+
+    public void completeWhenExceptionally(String requestId, Throwable cause){
+        CompletableFuture<RpcResponse<Object>> future = UNPROCESSED_RESPONSE_FUTURES.remove(requestId);
+        if (null != future) {
+            future.completeExceptionally(cause);
+        } else {
+            throw new IllegalStateException();
+        }
+    }
 }

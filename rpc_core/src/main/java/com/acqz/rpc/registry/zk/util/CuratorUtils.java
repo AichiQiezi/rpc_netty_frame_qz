@@ -1,5 +1,6 @@
 package com.acqz.rpc.registry.zk.util;
 
+import cn.hutool.json.JSONUtil;
 import com.acqz.common.enums.RpcConfigEnum;
 import com.acqz.common.utils.PropertiesFileUtil;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -7,10 +8,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.curator.framework.api.GetDataBuilder;
 import org.apache.curator.framework.imps.CuratorFrameworkState;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
 import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.zookeeper.CreateMode;
 
 import java.net.InetSocketAddress;
@@ -23,17 +27,10 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Curator(zookeeper client) utils
- *
  */
 @Slf4j
 public final class CuratorUtils {
 
-    /**
-     * baseSleepTimeMs：重试之间等待的初始时间
-     * maxRetries ：最大重试次数
-     * connectString ：要连接的服务器列表
-     * retryPolicy ：重试策略
-     */
     private static final int BASE_SLEEP_TIME = 1000;
     private static final int MAX_RETRIES = 3;
     public static final String ZK_REGISTER_ROOT_PATH = "/my-rpc";
@@ -41,6 +38,8 @@ public final class CuratorUtils {
     private static final Set<String> REGISTERED_PATH_SET = ConcurrentHashMap.newKeySet();
     private static CuratorFramework zkClient;
     private static final String DEFAULT_ZOOKEEPER_ADDRESS = "127.0.0.1:2181";
+    private static final KafkaProducer<String, String> KAFKA_PRODUCER = KafkaUtils.initProducer();
+    private static final String topic = "messageBus";
 
     private CuratorUtils() {
     }
@@ -136,14 +135,43 @@ public final class CuratorUtils {
      */
     private static void registerWatcher(String rpcServiceName, CuratorFramework zkClient) throws Exception {
         String servicePath = ZK_REGISTER_ROOT_PATH + "/" + rpcServiceName;
+        // Each zookeeper node corresponds to consumer group
         PathChildrenCache pathChildrenCache = new PathChildrenCache(zkClient, servicePath, true);
+        // when the node data changes,the local cache is updated and the message sending is triggered
         PathChildrenCacheListener pathChildrenCacheListener = (curatorFramework, pathChildrenCacheEvent) -> {
             List<String> serviceAddresses = curatorFramework.getChildren().forPath(servicePath);
+            long version = System.currentTimeMillis();
+            MessageBus messageBus = MessageBus.builder().version(version)
+                    .serviceAddresses(serviceAddresses)
+                    .rpcServiceName(rpcServiceName).build();
+            KAFKA_PRODUCER.send(new ProducerRecord<>(topic, JSONUtil.toJsonStr(messageBus)));
             SERVICE_ADDRESS_MAP.put(rpcServiceName, serviceAddresses);
+
         };
+        listenMessageBus();
         pathChildrenCache.getListenable().addListener(pathChildrenCacheListener::childEvent);
         pathChildrenCache.start();
+    }
+
+    private static void listenMessageBus() {
+        while (true){
+
+        }
+    }
+
+    private static void deleteNode(){
 
     }
+
+    private static void updateNode(){
+
+    }
+
+//    public static void main(String[] args) throws Exception {
+//        CuratorFramework zkClient = getZkClient();
+//        List<String> strings = zkClient.getChildren().forPath("/my-rpc/com.acqz.common.service.HelloService_test1_version1");
+//        byte[] bytes = zkClient.getData().forPath("/my-rpc/com.acqz.common.service.HelloService_test1_version1");
+//        System.out.println(new String(bytes));
+//    }
 
 }

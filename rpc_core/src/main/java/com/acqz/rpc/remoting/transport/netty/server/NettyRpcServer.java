@@ -37,7 +37,7 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Component
 public class NettyRpcServer {
-    public static final int PORT = 9998;
+    public static int PORT = 9999;
 
     private final ServiceProvider serviceProvider = SingletonFactory.getInstance(ZkServiceProviderImpl.class);
 

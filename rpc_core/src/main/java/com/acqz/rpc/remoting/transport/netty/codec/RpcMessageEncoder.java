@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * +-----+-----+-----+-----+--------+----+----+----+------+-----------+-------+----- --+-----+-----+----+---+
  * |   magic   code        |version |   full length       |messageType| codec |compress|    RequestId       |
  * +-----------------------+--------+---------------------+-----------+-----------+-----------+-------------+
- * /                                  Extended field 32B
+ * | Extended field length |           Extended field .....                                                   .......
  * +-----------------------+--------+---------------------+-----------+-----------+-----------+-------------+
  * |                                                                                                        |
  * |                                         body                                                           |
@@ -30,11 +30,11 @@ import java.util.concurrent.atomic.AtomicInteger;
  * |                                        ... ...                                                         |
  * +--------------------------------------------------------------------------------------------------------+
  * 4B  magic code（魔法数）   1B version（版本）   4B full length（消息长度）    1B messageType（消息类型）
- * 1B compress（压缩类型） 1B codec（序列化类型）    4B  requestId（请求的Id）
+ * 1B compress（压缩类型） 1B codec（序列化类型）    4B  requestId（请求的Id）  4B Extended field length （拓展字段的长度）
  *
  * @author haofeng
  * @date 2023/2/25 12:13
- * @description 自定义协议解码器
+ * @description 自定义协议编码器
  */
 @Slf4j
 public class RpcMessageEncoder extends MessageToByteEncoder<RpcMessage> {

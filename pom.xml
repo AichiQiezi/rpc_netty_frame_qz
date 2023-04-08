@@ -11,9 +11,6 @@
     <modules>
         <module>rpc_core</module>
         <module>rpc_common</module>
-        <module>qz_consumer</module>
-        <module>qz_provider</module>
-        <module>qz_interface</module>
     </modules>
 
 
@@ -38,6 +35,12 @@
         <hessian.version>4.0.65</hessian.version>
     </properties>
     <dependencies>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>31.0.1-jre</version>
+        </dependency>
+
         <!-- lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -23,4 +23,16 @@ public @interface RpcReference {
      */
     String group() default "";
 
+    /**
+     * Whether to turn on the fuse
+     * {@code true} yes
+     */
+    boolean is_fuse() default false;
+
+    /**
+     * Method called when fuse occurs,throws an exception when null
+     * the function must be in the same class as the target class
+     */
+    String fallback() default "";
+
 }

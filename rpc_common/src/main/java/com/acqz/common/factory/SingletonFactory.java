@@ -1,5 +1,6 @@
 package com.acqz.common.factory;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -33,5 +34,34 @@ public class SingletonFactory {
                 }
             }));
         }
+    }
+
+    public static <T> T getInstance(Class<T> c, Object... args) {
+        if (c == null) {
+            throw new IllegalArgumentException("");
+        }
+        String key = c.toString();
+        if (OBJECT_MAP.containsKey(key)) {
+            return c.cast(OBJECT_MAP.get(key));
+        } else {
+            T instance;
+            try {
+                Constructor<T> constructor = c.getDeclaredConstructor(getParameterTypes(args));
+                instance = constructor.newInstance(args);
+            } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+                e.printStackTrace();
+                throw new RuntimeException(e);
+            }
+            OBJECT_MAP.put(key, instance);
+            return instance;
+        }
+    }
+
+    private static Class<?>[] getParameterTypes(Object[] args) {
+        Class<?>[] parameterTypes = new Class<?>[args.length];
+        for (int i = 0; i < args.length; i++) {
+            parameterTypes[i] = args[i].getClass();
+        }
+        return parameterTypes;
     }
 }

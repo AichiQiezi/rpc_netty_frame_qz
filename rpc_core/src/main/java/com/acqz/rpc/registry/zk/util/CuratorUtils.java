@@ -3,21 +3,24 @@ package com.acqz.rpc.registry.zk.util;
 import cn.hutool.json.JSONUtil;
 import com.acqz.common.enums.RpcConfigEnum;
 import com.acqz.common.utils.PropertiesFileUtil;
-import com.google.common.util.concurrent.MoreExecutors;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.RetryPolicy;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.curator.framework.api.GetDataBuilder;
 import org.apache.curator.framework.imps.CuratorFrameworkState;
 import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
 import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.zookeeper.CreateMode;
 
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -39,6 +42,7 @@ public final class CuratorUtils {
     private static CuratorFramework zkClient;
     private static final String DEFAULT_ZOOKEEPER_ADDRESS = "127.0.0.1:2181";
     private static final KafkaProducer<String, String> KAFKA_PRODUCER = KafkaUtils.initProducer();
+    private static final KafkaConsumer<String, String> KAFKA_CONSUMER = KafkaUtils.initConsumer();
     private static final String topic = "messageBus";
 
     private CuratorUtils() {
@@ -154,17 +158,35 @@ public final class CuratorUtils {
     }
 
     private static void listenMessageBus() {
-        while (true){
+        new Thread(() -> {
+            while (true) {
+                ConsumerRecords<String, String> records = KAFKA_CONSUMER.poll(Duration.ofSeconds(1));
+                for (ConsumerRecord<String, String> record : records) {
+                    MessageBus messageBus = JSONUtil.toBean(record.value(), MessageBus.class);
+                    try {
+                        updateServiceRegistry(messageBus);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                KAFKA_CONSUMER.commitAsync();
+                try {
+                    TimeUnit.SECONDS.sleep(5);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
+    }
 
+    private static void updateServiceRegistry(MessageBus messageBus) throws Exception {
+        byte[] bytes = zkClient.getData().forPath(ZK_REGISTER_ROOT_PATH + messageBus.getRpcServiceName());
+        MessageBus curMessageBus = JSONUtil.toBean(new String(bytes), messageBus.getClass());
+        if (curMessageBus.getVersion() > messageBus.getVersion()){
+            return;
         }
-    }
-
-    private static void deleteNode(){
-
-    }
-
-    private static void updateNode(){
-
+        SERVICE_ADDRESS_MAP.put(messageBus.getRpcServiceName(),messageBus.getServiceAddresses());
+        zkClient.setData().forPath(ZK_REGISTER_ROOT_PATH + messageBus.getRpcServiceName(),JSONUtil.toJsonStr(messageBus).getBytes(StandardCharsets.UTF_8));
     }
 
 //    public static void main(String[] args) throws Exception {

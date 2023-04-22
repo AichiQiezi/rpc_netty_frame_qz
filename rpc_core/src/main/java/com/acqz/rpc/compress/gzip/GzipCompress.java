@@ -23,6 +23,7 @@ public class GzipCompress implements Compress {
         if (bytes == null) {
             throw new NullPointerException("bytes is null");
         }
+        // test 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream();
              GZIPOutputStream gzip = new GZIPOutputStream(out)) {
             gzip.write(bytes);
